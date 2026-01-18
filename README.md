@@ -11,11 +11,10 @@ Download files from MediaFire directly in Gopeed. This extension automatically r
 
 ## Installation
 
-1. Download or clone this repository.
-2. Open Gopeed and go to the Extensions section.
-3. Enable Developer Mode by clicking the install button 5 times in a row.
-4. Click to select the extension directory and choose this project's folder.
-5. The extension will be installed and ready to use.
+1.Copy URL this repo.
+2.Open Gopeed -> extensions 
+3.Past URL.
+4.Done.
 
 ## Usage
 
