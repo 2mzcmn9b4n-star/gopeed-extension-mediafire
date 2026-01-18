@@ -1,0 +1,17 @@
+ {
+  "name": "gopeed-extension-mediafire",
+  "author": "Locon213",
+  "title": "MediaFire Downloader",
+  "description": "Extension for downloading files from MediaFire",
+  "icon": "icon.png",
+  "version": "1.0.0",
+  "scripts": [
+    {
+      "event": "onResolve",
+      "match": {
+        "urls": ["*://*.mediafire.com/*"]
+      },
+      "entry": "index.js"
+    }
+  ]
+}
