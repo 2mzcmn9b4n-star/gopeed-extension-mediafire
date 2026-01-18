@@ -10,7 +10,6 @@ Download files from MediaFire directly in Gopeed. This extension automatically r
 - Supports all MediaFire file links
 
 ## Installation
-
 1.Copy URL this repo.
 2.Open Gopeed -> extensions 
 3.Past URL.
