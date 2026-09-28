@@ -142,6 +142,7 @@ gopeed.events.onResolve(async (ctx) => {
       }
 
       ctx.res = {
+        name: fileName,
         files: [
           {
             name: fileName,
