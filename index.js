@@ -1,46 +1,5 @@
 gopeed.events.onResolve(async (ctx) => {
   const url = ctx.req.url;
-
-  const normalizeFileName = (rawName) => {
-    if (!rawName) return 'mediafire_file';
-
-    let name = decodeURIComponent(rawName)
-      .split('?')[0]
-      .replace(/\\/g, '/');
-
-    name = name.replace(/^.*\//, '');
-
-    const lastDot = name.lastIndexOf('.');
-    const hasExtension = lastDot > 0 && lastDot < name.length - 1;
-    let ext = '';
-
-    if (hasExtension) {
-      ext = name.slice(lastDot);
-      name = name.slice(0, lastDot);
-    }
-
-    name = name
-      .replace(/[_]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .replace(/\s*\|\s*MediaFire\s*$/i, '')
-      .replace(/\s*[-–—]\s*(?:Download|MediaFire)\s*$/i, '')
-      .replace(/[<>:"/|?*]+/g, ' ')
-      .trim();
-
-    if (!name) {
-      name = 'mediafire_file';
-    }
-
-    name = name
-      .replace(/\s*\(\s*/g, ' (')
-      .replace(/\s*\)\s*/g, ') ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    const finalName = `${name}${ext}`.trim();
-    return finalName || 'mediafire_file';
-  };
-
   try {
     const response = await fetch(url, {
       headers: {
@@ -59,69 +18,72 @@ gopeed.events.onResolve(async (ctx) => {
     let fileName = 'mediafire_file';
     let fileSize = 0;
 
-    const urlFileName = (() => {
-      const match = url.match(/\/([^/?#]+)$/);
-      return match ? normalizeFileName(match[1]) : '';
-    })();
-
-    if (urlFileName) {
-      fileName = urlFileName;
+    // Extract filename from URL (most reliable)
+    const urlMatch = url.match(/\/([^/?#]+)$/);
+    if (urlMatch) {
+      fileName = decodeURIComponent(urlMatch[1])
+        .replace(/[_]+/g, ' ')
+        .trim();
     }
 
+    // Extract filename from title tag as fallback
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-    if (titleMatch) {
-      const titleText = titleMatch[1].trim();
-      const cleanedTitle = titleText
-        .replace(/\s*[-|]\s*(?:Download|MediaFire)\s*$/i, '')
-        .trim();
-
-      if (cleanedTitle && cleanedTitle.toLowerCase() !== 'mediafire') {
-        const titleFileName = normalizeFileName(cleanedTitle);
-        if (titleFileName && titleFileName !== 'mediafire_file') {
-          fileName = titleFileName;
-        }
+    if (titleMatch && !fileName.includes('.')) {
+      let titleText = titleMatch[1]
+        .trim()
+        .replace(/\s*[-|]\s*(?:Download|MediaFire)\s*$/i, '');
+      
+      if (titleText.includes('.')) {
+        fileName = titleText
+          .replace(/[_]+/g, ' ')
+          .trim();
       }
     }
 
-    const downloadButtonMatch = html.match(/data-url=["']([^"']+download[^"']+)["']/i);
+    // Method 1: Look for download button data attributes (modern MediaFire)
+    const downloadButtonMatch = html.match(/data-url=["']([^"']+)["']/);
     if (downloadButtonMatch) {
       directUrl = downloadButtonMatch[1];
       gopeed.logger.info('Found direct link via download button data-url');
     }
 
+    // Method 2: Search for direct download server patterns
     if (!directUrl) {
-      const directMatch = html.match(/https:\/\/download\d+\.mediafire\.com\/[a-zA-Z0-9_\-/]+/);
+      const directMatch = html.match(/https:\/\/download\d+\.mediafire\.com\/[^\s"'<>]+/);
       if (directMatch) {
         directUrl = directMatch[0];
         gopeed.logger.info('Found direct link via download server pattern');
       }
     }
 
+    // Method 3: Look for href with download in it
     if (!directUrl) {
-      const linkMatch = html.match(/<a[^>]+href=["']([^"']*mediafire\.com[^"']*download[^"']*)["'][^>]*>/i);
-      if (linkMatch) {
-        const href = linkMatch[1];
+      const hrefMatch = html.match(/href=["']([https:\/\/[^\s"'<>]*download[^\s"'<>]*)["']/i);
+      if (hrefMatch) {
+        const href = hrefMatch[1];
         if (href.startsWith('http')) {
           directUrl = href;
-          gopeed.logger.info('Found direct link via download link tag');
+          gopeed.logger.info('Found direct link via href');
         }
       }
     }
 
+    // Method 4: Generic URL extraction for download/api endpoints
     if (!directUrl) {
-      const apiMatch = html.match(/https:\/\/[^\s"'<>]+(?:download|api|file)[^\s"'<>]+/gi);
-      if (apiMatch) {
-        directUrl = apiMatch.find(candidate => 
-          candidate.includes('download') ||
-          (candidate.includes('mediafire.com') && candidate.includes('/file/'))
-        );
-        if (directUrl) {
-          gopeed.logger.info('Found direct link via API/download endpoint');
+      const urlsInHtml = html.match(/https:\/\/[^\s"'<>]+/g);
+      if (urlsInHtml) {
+        for (let candidate of urlsInHtml) {
+          if (candidate.includes('download') || candidate.includes('/file/')) {
+            directUrl = candidate;
+            gopeed.logger.info('Found direct link via URL pattern');
+            break;
+          }
         }
       }
     }
 
     if (directUrl) {
+      // Attempt to get file size via HEAD request
       try {
         const headResponse = await fetch(directUrl, {
           method: 'HEAD',
