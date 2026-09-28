@@ -18,12 +18,40 @@ gopeed.events.onResolve(async (ctx) => {
     let fileName = 'mediafire_file';
     let fileSize = 0;
 
+    // Extract filename from URL first (most reliable source)
+    const urlMatch = url.match(/\/([^/?#]+)$/);
+    let urlFileName = '';
+    if (urlMatch) {
+      urlFileName = decodeURIComponent(urlMatch[1]);
+    }
+
     // Extract filename from title tag
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
     if (titleMatch) {
-      fileName = titleMatch[1]
+      let titleText = titleMatch[1]
         .trim()
-        .replace(/\s*\|\s*MediaFire\s*$/i, '')
+        .replace(/\s*[-|]\s*(?:Download|MediaFire)\s*$/i, '');
+
+      // Preserve the filename if it looks complete (has extension)
+      if (titleText.includes('.')) {
+        fileName = titleText
+          .replace(/[^a-zA-Z0-9._\-()\[\] ]/g, '_')
+          .trim();
+      } else {
+        // Fallback: use URL filename if available
+        if (urlFileName) {
+          fileName = urlFileName
+            .replace(/[^a-zA-Z0-9._\-()\[\] ]/g, '_')
+            .trim();
+        } else {
+          fileName = titleText
+            .replace(/[^a-zA-Z0-9._\-()\[\] ]/g, '_')
+            .trim();
+        }
+      }
+    } else if (urlFileName) {
+      // If no title, use URL filename
+      fileName = urlFileName
         .replace(/[^a-zA-Z0-9._\-()\[\] ]/g, '_')
         .trim();
     }
