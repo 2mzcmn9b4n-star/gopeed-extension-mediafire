@@ -26,6 +26,16 @@ gopeed.events.onResolve(async (ctx) => {
         .replace(/\s*\|\s*MediaFire\s*$/i, '')
         .replace(/[^a-zA-Z0-9._\- ]/g, '_')
         .trim();
+      
+      // Preserve file extension if present
+      const extMatch = fileName.match(/(\.\w+)$/);
+      if (!extMatch) {
+        // If no extension detected in cleaned name, try to extract from original title
+        const origExtMatch = titleMatch[1].match(/(\.\w+)\s*(?:\||$)/);
+        if (origExtMatch) {
+          fileName += origExtMatch[1];
+        }
+      }
     }
 
     // Method 1: Look for download button data attributes (modern MediaFire)
